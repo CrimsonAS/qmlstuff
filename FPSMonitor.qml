@@ -6,6 +6,8 @@ import QtQuick 2.0
 Text {
     property real t
     property int frame: 0
+    color: "red"
+    text: "? Hz"
 
     Timer {
         id: fpsTimer
@@ -14,7 +16,7 @@ Text {
         interval: 1000
         running: true
         onTriggered: {
-            console.log("FPS: " + fpsTimer.fps + " Hz")
+            parent.text = "FPS: " + fpsTimer.fps + " Hz"
             fps = frame
             frame = 0
         }
