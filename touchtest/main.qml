@@ -129,7 +129,6 @@ Rectangle {
         }
 
         onCanceled: {
-            cancelCount += touchPoints.length
             for (var i = 0; i < touchPoints.length; ++i) {
                 var p = touchPoints[i].pointId
 
