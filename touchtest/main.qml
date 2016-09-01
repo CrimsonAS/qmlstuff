@@ -170,11 +170,13 @@ Canvas {
                 root.currentlyPressed.push(p)
                 root.debug({text: "Pressed " + p, point: p })
 
+                var t = (new Date).getTime()
                 lines.push({
                     active: true,
                     point: p,
                     color: genColor(p),
-                    lastPress: (new Date).getTime(),
+                    lastPress: t,
+                    startPress: t,
                     points: [ { x: touchPoints[i].sceneX, y: touchPoints[i].sceneY } ]
                 })
                 root.requestPaint()
@@ -202,19 +204,22 @@ Canvas {
                 if (idx != -1) {
                     root.currentlyPressed.splice(idx, 1)
                     realCancelCount++
+                    var t = (new Date).getTime()
+                    var sp = 0
 
                     for (var j = 0; j < lines.length; ++j) {
                         var line = lines[j]
                         if (line.point == p && line.active) {
+                            sp = line.startPress
                             line.active = false
-                            line.lastPress = (new Date).getTime()
+                            line.lastPress = t
                             line.points.push({ x: touchPoints[i].sceneX, y: touchPoints[i].sceneY })
                             root.requestPaint()
                             break;
                         }
                     }
 
-                    root.debug({text: "Cancelled " + p, point: p })
+                    root.debug({text: "Cancelled " + p + " -- held for " + (t - sp) + " ms", point: p })
                 } else {
                     fakeCancelCount++
                     root.debug({text: "*FAKE* CANCEL FOR " + p, point: p })
@@ -232,19 +237,22 @@ Canvas {
                 if (idx != -1) {
                     root.currentlyPressed.splice(idx, 1)
                     realReleaseCount++
+                    var t = (new Date).getTime()
+                    var sp = 0
 
                     for (var j = 0; j < lines.length; ++j) {
                         var line = lines[j]
                         if (line.point == p && line.active) {
+                            sp = line.startPress
                             line.active = false
-                            line.lastPress = (new Date).getTime()
+                            line.lastPress = t
                             line.points.push({ x: touchPoints[i].sceneX, y: touchPoints[i].sceneY })
                             root.requestPaint()
                             break;
                         }
                     }
 
-                    root.debug({text: "Released " + p, point: p })
+                    root.debug({text: "Released " + p + " -- held for " + (t - sp) + " ms", point: p })
                 } else {
                     fakeReleaseCount++
                     root.debug({text: "*FAKE* RELEASE FOR " + p, point: p })
