@@ -1,7 +1,10 @@
 import QtQuick 2.5
 
-Rectangle {
+Canvas {
     id: root
+    width: 900
+    height: 900
+
     property int fakeCancelCount
     property int realCancelCount
     property int pressCount
@@ -9,6 +12,42 @@ Rectangle {
     property int fakeReleaseCount
     property int updateCount
     property var currentlyPressed
+    property var lines
+    property int lineCount
+
+    onPaint: {
+        root.lineCount = lines.length
+
+        var ctx = getContext("2d");
+        ctx.lineWidth = 5
+        ctx.lineCap = "round"
+        ctx.fillStyle = "white"
+        ctx.fillRect(0,  0,  width,  height);
+        ctx.fill()
+
+        for (var i = 0; i < lines.length; ++i) {
+            var line = lines[i]
+            ctx.strokeStyle = line.color
+
+            ctx.beginPath()
+            ctx.moveTo(line.points[0].x, line.points[0].y)
+            for (var j = 1; j < line.points.length; ++j) {
+                ctx.lineTo(line.points[j].x, line.points[j].y)
+            }
+            ctx.stroke()
+
+            // draw circle at start and end
+            ctx.beginPath();
+            ctx.arc(line.points[0].x, line.points[0].y, 5, 0, 2 * Math.PI * 2, false);
+            ctx.fillStyle = line.color
+            ctx.fill()
+
+            ctx.beginPath();
+            ctx.arc(line.points[line.points.length - 1].x, line.points[line.points.length - 1].y, 5, 0, 2 * Math.PI * 2, false);
+            ctx.fillStyle = line.color
+            ctx.fill()
+        }
+    }
 
     function reset() {
         fakeCancelCount = 0
@@ -18,7 +57,9 @@ Rectangle {
         fakeReleaseCount = 0
         updateCount = 0
         currentlyPressed = []
+        lines = []
         pressModel.clear()
+        root.requestPaint()
     }
 
     function debug(obj) {
@@ -59,8 +100,23 @@ Rectangle {
             running: true
             repeat: true
             onTriggered: {
-                if (parent.dirty) parent.positionViewAtEnd()
-                parent.dirty = false
+                if (parent.dirty) {
+                    parent.positionViewAtEnd()
+                    parent.dirty = false
+                }
+
+                var time = (new Date).getTime()
+
+                for (var i = 0; i < lines.length; ++i) {
+                    var line = lines[i]
+                    if (line.active == false) {
+                        if (time - line.lastPress > 5000) {
+                            lines.splice(i, 1)
+                            i--
+                            root.requestPaint()
+                        }
+                    }
+                }
             }
         }
     }
@@ -69,6 +125,7 @@ Rectangle {
         anchors.right: parent.right
         Text { text: "Presses: " + pressCount }
         Text { text: "Active Presses: " + (pressCount - (realCancelCount + fakeCancelCount + realReleaseCount + fakeReleaseCount)) }
+        Text { text: "Active Strokes: " + root.lineCount }
         Item { // spacer
             height: 30
             width: 1
@@ -112,6 +169,15 @@ Rectangle {
                 var p = touchPoints[i].pointId
                 root.currentlyPressed.push(p)
                 root.debug({text: "Pressed " + p, point: p })
+
+                lines.push({
+                    active: true,
+                    point: p,
+                    color: genColor(p),
+                    lastPress: (new Date).getTime(),
+                    points: [ { x: touchPoints[i].sceneX, y: touchPoints[i].sceneY } ]
+                })
+                root.requestPaint()
             }
         }
 
@@ -136,12 +202,23 @@ Rectangle {
                 if (idx != -1) {
                     root.currentlyPressed.splice(idx, 1)
                     realCancelCount++
+
+                    for (var j = 0; j < lines.length; ++j) {
+                        var line = lines[j]
+                        if (line.point == p && line.active) {
+                            line.active = false
+                            line.lastPress = (new Date).getTime()
+                            line.points.push({ x: touchPoints[i].sceneX, y: touchPoints[i].sceneY })
+                            root.requestPaint()
+                            break;
+                        }
+                    }
+
                     root.debug({text: "Cancelled " + p, point: p })
                 } else {
                     fakeCancelCount++
                     root.debug({text: "*FAKE* CANCEL FOR " + p, point: p })
                 }
-
             }
 
             doDebugOnPointsGone()
@@ -155,6 +232,18 @@ Rectangle {
                 if (idx != -1) {
                     root.currentlyPressed.splice(idx, 1)
                     realReleaseCount++
+
+                    for (var j = 0; j < lines.length; ++j) {
+                        var line = lines[j]
+                        if (line.point == p && line.active) {
+                            line.active = false
+                            line.lastPress = (new Date).getTime()
+                            line.points.push({ x: touchPoints[i].sceneX, y: touchPoints[i].sceneY })
+                            root.requestPaint()
+                            break;
+                        }
+                    }
+
                     root.debug({text: "Released " + p, point: p })
                 } else {
                     fakeReleaseCount++
@@ -166,82 +255,91 @@ Rectangle {
         }
         onUpdated: {
             updateCount += touchPoints.length
-            //for (var i = 0; i < touchPoints.length; ++i) {
+            for (var i = 0; i < touchPoints.length; ++i) {
+                    var p = touchPoints[i].pointId
+                    for (var j = 0; j < lines.length; ++j) {
+                        var line = lines[j]
+                        if (line.point == p && line.active) {
+                            line.lastPress = (new Date).getTime()
+                            line.points.push({ x: touchPoints[i].sceneX, y: touchPoints[i].sceneY })
+                            root.requestPaint()
+                            break;
+                        }
+                    }
                 //	root.debug({text: "Updated " + touchPoints[i].pointId, point: touchPoints[i].pointId })
-                //}
-            }
-        }
-
-        Rectangle {
-            property var point: point1
-            width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
-        }
-        Rectangle {
-            property var point: point2
-            width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
-        }
-
-        Rectangle {
-            property var point: point3
-            width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
-        }
-
-        Rectangle {
-            property var point: point4
-            width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
-        }
-
-        Rectangle {
-            property var point: point5
-            width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
-        }
-
-        Rectangle {
-            property var point: point6
-            width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
-        }
-
-        Rectangle {
-            property var point: point7
-            width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
-        }
-
-        Rectangle {
-            property var point: point8
-            width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
-        }
-
-        Rectangle {
-            property var point: point9
-            width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
-        }
-
-        Rectangle {
-            property var point: point10
-            width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
-        }
-
-
-
-        Rectangle {
-            color: "purple"
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            width: 100
-            height: 100
-
-            Text {
-                anchors.centerIn: parent
-                text: "Clear Data"
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                onClicked: {
-                    root.reset()
-                }
             }
         }
     }
 
+    Rectangle {
+        property var point: point1
+        width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
+    }
+    Rectangle {
+        property var point: point2
+        width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
+    }
+
+    Rectangle {
+        property var point: point3
+        width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
+    }
+
+    Rectangle {
+        property var point: point4
+        width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
+    }
+
+    Rectangle {
+        property var point: point5
+        width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
+    }
+
+    Rectangle {
+        property var point: point6
+        width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
+    }
+
+    Rectangle {
+        property var point: point7
+        width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
+    }
+
+    Rectangle {
+        property var point: point8
+        width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
+    }
+
+    Rectangle {
+        property var point: point9
+        width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
+    }
+
+    Rectangle {
+        property var point: point10
+        width: 120; height: 120; color: root.genColor(point.pointId); x: point.x - (width / 2); y: point.y - (height / 2); visible: point.pressed
+    }
+
+
+
+    Rectangle {
+        color: "purple"
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        width: 100
+        height: 100
+
+        Text {
+            anchors.centerIn: parent
+            text: "Clear Data"
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {
+                root.reset()
+            }
+        }
+    }
+}
 
