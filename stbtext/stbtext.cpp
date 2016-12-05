@@ -26,6 +26,15 @@ void StbText::setFont(StbFont *font)
     update();
 }
 
+void StbText::setColor(const QColor &color)
+{
+    if (m_color == color)
+        return;
+    m_color = color;
+    emit colorChanged();
+    update();
+}
+
 QSGNode *StbText::updatePaintNode(QSGNode *old, UpdatePaintNodeData *)
 {
     if (!m_font) {
@@ -34,5 +43,5 @@ QSGNode *StbText::updatePaintNode(QSGNode *old, UpdatePaintNodeData *)
         return 0;
     }
 
-    return m_font->update(old, m_text);
+    return m_font->update(old, m_text, m_color);
 }

@@ -22,7 +22,7 @@ public:
     float size() const { return m_size; }
     void setSize(float size);
 
-    QSGNode *update(QSGNode *old, const QString &text);
+    QSGNode *update(QSGNode *old, const QString &text, const QColor &color);
 
 signals:
     void fontChanged();

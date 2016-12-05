@@ -34,7 +34,7 @@ Rectangle
     StbText {
         x: 100
         y: 100
-        text: "Hello World!"
+        text: "Hello World! \u03A6"
         font: openSansFont
     }
 

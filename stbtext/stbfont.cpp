@@ -25,11 +25,16 @@ public:
 struct StbFontShaderState
 {
     QSGTexture *texture;
+
+    int compare(const StbFontShaderState *other) const
+    {
+        return texture == other->texture ? 0 : (int)(qintptr(texture) - qintptr(other->texture));
+    }
 };
 
 class StbFontShader : public QSGSimpleMaterialShader<StbFontShaderState>
 {
-    QSG_DECLARE_SIMPLE_SHADER(StbFontShader, StbFontShaderState)
+    QSG_DECLARE_SIMPLE_COMPARABLE_SHADER(StbFontShader, StbFontShaderState)
 public:
 
     const char *vertexShader() const Q_DECL_OVERRIDE {
@@ -129,7 +134,7 @@ void StbFont::setSize(float size)
     m_tryLoad = true;
 }
 
-QSGNode *StbFont::update(QSGNode *old, const QString &text)
+QSGNode *StbFont::update(QSGNode *old, const QString &text, const QColor &color)
 {
     if (m_tryLoad)
         loadFont();
@@ -195,10 +200,15 @@ QSGNode *StbFont::update(QSGNode *old, const QString &text)
 
     int glyphIndex = 0;
 
+    uchar ca = color.alpha();
+    uchar cr = (color.red() * ca) / 255;
+    uchar cg = (color.green() * ca) / 255;
+    uchar cb = (color.blue() * ca) / 255;
+
     for (int i=0; i<text.size(); ++i) {
         if (!text.at(i).isSpace()) {
             int uc = text.at(i).unicode();
-            if (uc > 96 + 32) {
+            if (uc > 1000 + 32) {
                 // out of our fixed range..
                 qFatal("uh oh...");
             }
@@ -213,10 +223,10 @@ QSGNode *StbFont::update(QSGNode *old, const QString &text)
             float w = c.x1 - c.x0;
             float h = c.y1 - c.y0;
 
-            vd[0].set(  x + c.xoff, y + m_size + c.yoff,   c.x0, c.y0,   0, 0, 0, 255, idpr);
-            vd[1].set(x+w + c.xoff, y + m_size + c.yoff,   c.x1, c.y0,   0, 0, 0, 255, idpr);
-            vd[2].set(  x + c.xoff, y+h + m_size + c.yoff, c.x0, c.y1,   0, 0, 0, 255, idpr);
-            vd[3].set(x+w + c.xoff, y+h + m_size + c.yoff, c.x1, c.y1,   0, 0, 0, 255, idpr);
+            vd[0].set(  x + c.xoff, y + m_size + c.yoff,   c.x0, c.y0,   cr, cg, cb, ca, idpr);
+            vd[1].set(x+w + c.xoff, y + m_size + c.yoff,   c.x1, c.y0,   cr, cg, cb, ca, idpr);
+            vd[2].set(  x + c.xoff, y+h + m_size + c.yoff, c.x0, c.y1,   cr, cg, cb, ca, idpr);
+            vd[3].set(x+w + c.xoff, y+h + m_size + c.yoff, c.x1, c.y1,   cr, cg, cb, ca, idpr);
             vd += 4;
 
             id[0] = 0 + glyphIndex;
@@ -232,6 +242,8 @@ QSGNode *StbFont::update(QSGNode *old, const QString &text)
             x += c.xadvance;
         }
     }
+
+    node->markDirty(QSGNode::DirtyGeometry);
 
     // qDebug("StbFont: node for %d glyphs created in %.3fms", glyphCount, timer.nsecsElapsed() / 1000000.0);
 
@@ -253,7 +265,7 @@ bool StbFont::loadFont()
     int th = 512;
     pixelData.fill(0, tw * th);
 
-    int glyphCount = 96;
+    int glyphCount = 1000;
     m_bakedChars.resize(glyphCount * sizeof(stbtt_bakedchar));
 
     m_fontData = file.readAll();
