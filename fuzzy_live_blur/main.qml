@@ -9,7 +9,7 @@ Item {
 
         anchors.fill: parent
         fillMode: Image.PreserveAspectCrop
-        source: "../images/grapes.jpg"
+        source: "grapes.jpg"
 
         property int rowCount: 2 * contentRoot.width / 320;
         property real cellSize: width / rowCount;
