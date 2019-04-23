@@ -14,6 +14,10 @@ Canvas {
     property var currentlyPressed
     property var lines
     property int lineCount
+    property int mousePressCount
+    property int mouseReleaseCount
+    property int mouseClickedCount
+    property int mouseMovedCount
 
     onPaint: {
         root.lineCount = lines.length
@@ -57,6 +61,10 @@ Canvas {
         fakeReleaseCount = 0
         updateCount = 0
         currentlyPressed = []
+        mousePressCount = 0
+        mouseReleaseCount = 0
+        mouseClickedCount = 0
+        mouseMovedCount = 0
         lines = []
         pressModel.clear()
         root.requestPaint()
@@ -145,6 +153,85 @@ Canvas {
             width: 1
         }
         Text { text: "Updates: " + updateCount }
+
+        Item { // spacer
+            height: 30
+            width: 1
+        }
+        Text { text: "Mouse press: " + mousePressCount }
+        Text { text: "Mouse release: " + mouseReleaseCount }
+        Text { text: "Mouse click: " + mouseClickedCount }
+        Text { text: "Mouse moved: " + mouseMovedCount }
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        hoverEnabled: true
+
+        onPressed: {
+            var idx = root.currentlyPressed.indexOf(-1)
+            if (idx != -1) {
+                console.warn("PRESSED BEFORE RELEASE SEEN!");
+                return;
+            }
+
+            mousePressCount++
+	    root.debug({text: "Mouse pressed", x: mouseX, y: mouseY, point: -1 } )
+            root.currentlyPressed.push(-1);
+
+            var t = (new Date).getTime()
+            lines.push({
+                active: true,
+                point: -1 /* mouse */,
+                color: genColor(-1),
+                lastPress: t,
+                startPress: t,
+                points: [ { x: mouseX, y: mouseY } ]
+            })
+            root.requestPaint()
+        }
+        onReleased: {
+            var idx = root.currentlyPressed.indexOf(-1)
+            if (idx != -1) {
+                mouseReleaseCount++
+                root.currentlyPressed.splice(idx, 1)
+                var t = (new Date).getTime()
+                var sp = 0
+
+                for (var j = 0; j < lines.length; ++j) {
+                    var line = lines[j]
+                    if (line.point == -1 && line.active) {
+                        sp = line.startPress
+                        line.active = false
+                        line.lastPress = t
+                        line.points.push({ x: mouseX, y: mouseY })
+                        root.requestPaint()
+                        break;
+                    }
+                }
+
+                root.debug({text: "Mouse released -- held for " + (t - sp) + " ms", x: mouseX, y: mouseY, point: -1 })
+            } else {
+                fakeReleaseCount++
+                root.debug({text: "*FAKE* MOUSE RELEASE", x: mouseX, y: mouseY, point: -1 })
+            }
+        }
+        onClicked: {
+            mouseClickedCount++
+        }
+        onPositionChanged: {
+            mouseMovedCount++
+            for (var j = 0; j < lines.length; ++j) {
+                var line = lines[j]
+                if (line.point == -1 && line.active) {
+                    root.debug({text: "Mouse moved " + Math.round(mouseX) + ":" + Math.round(mouseY), point: -1 })
+                    line.lastPress = (new Date).getTime()
+                    line.points.push({ x: mouseX, y: mouseY })
+                    root.requestPaint()
+                    break;
+                }
+            }
+        }
     }
 
     MultiPointTouchArea {
