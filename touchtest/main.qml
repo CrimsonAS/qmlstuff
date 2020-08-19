@@ -74,6 +74,9 @@ Canvas {
         console.log(obj.text)
 
         obj.text = obj.text + " " + JSON.stringify(root.currentlyPressed)
+
+        // ListModel doesn't like objects of different types being placed into it.
+        // To work around that, we do a JSON round trip dance to remove the existing type.
         pressModel.append(obj)
     }
 
@@ -255,7 +258,7 @@ Canvas {
             for (var i = 0; i < touchPoints.length; ++i) {
                 var p = touchPoints[i].pointId
                 root.currentlyPressed.push(p)
-                root.debug({text: "Pressed " + p, point: p })
+                root.debug({text: "Pressed " + p, point: p, point: touchPoints[i].pointId })
 
                 var t = (new Date).getTime()
                 lines.push({
