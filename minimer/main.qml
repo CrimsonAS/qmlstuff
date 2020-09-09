@@ -1,14 +1,14 @@
 import QtQuick 2.0
 
 Item {
-    width: 480
-    height: 320
+    width: 1920
+    height: 1080
 
     Image {
         id: root
         sourceSize.width: parent.width
         sourceSize.height: parent.height
-//        fillMode: Image.PreserveAspectCrop
+        anchors.centerIn: parent
 
         Component.onCompleted: {
             height = parent.height
